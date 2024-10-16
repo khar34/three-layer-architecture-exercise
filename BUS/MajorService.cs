@@ -9,7 +9,7 @@ namespace BUS
 {
     public class MajorService
     {
-        public List<Major> GetAllByFaculty(int facultyID)
+        public static List<Major> GetAllByFaculty(int facultyID)
         {
             StudentContextDB context = new StudentContextDB();
             return context.Majors.Where(p => p.FacultyID == facultyID).ToList();

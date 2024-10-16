@@ -62,24 +62,42 @@ namespace BaiTapBaLop
                 if (item.MajorID != null)
                 {
                     dataGridView1.Rows[index].Cells[4].Value = item.Major.Name + "";
-                    //ShowAvatar(item.Avatar);
+                    ShowAvatar(item.Avatar);
                 }
             }
         }
-        //private void ShowAvatar(string ImageName)
-        //{
-        //    if (string.IsNullOrEmpty(ImageName))
-        //    {
-        //        pictureBox1.Image = null;
-        //    }
-        //    else
-        //    {
-        //        string parentDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).Parent.Parent.FullName;
-        //        string imagePath = Path.Combine(parentDirectory, "Images",ImageName);
-        //        pictureBox1.Image = Image.FromFile(imagePath);
-        //        pictureBox1.Refresh();
-        //    }
-        //}
+        private void ShowAvatar(string ImageName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ImageName))
+                {
+                    pictureBoxAvatar.Image = null;
+                }
+                else
+                {
+                    string parentDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).Parent.Parent.FullName;
+                    string imagePath = Path.Combine(parentDirectory, "Images", ImageName);
+
+                    // Check if the file exists before loading it
+                    if (File.Exists(imagePath))
+                    {
+                        pictureBoxAvatar.Image = Image.FromFile(imagePath);
+                    }
+                    else
+                    {
+                        //MessageBox.Show("Image file not found: " + imagePath);
+                        pictureBoxAvatar.Image = null; // Set a default image or leave it blank
+                    }
+
+                    pictureBoxAvatar.Refresh();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi: " + ex.Message);
+            }
+        }
         public void setGridViewStyle(DataGridView dgv)
         {
             dgv.BorderStyle = BorderStyle.None;
@@ -89,7 +107,7 @@ namespace BaiTapBaLop
             dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         }
 
-        private void LoadData()
+        public void LoadData()
         {
             List<Student> students = studentService.GetAll();
             BindGrid(students);
@@ -141,7 +159,7 @@ namespace BaiTapBaLop
                     AverageScore = avgScore,
                     FacultyID = Convert.ToInt32(cmbKhoa.SelectedValue),
                 };
-                studentService.InsertUpdate(newStudent);
+                StudentService.InsertUpdate(newStudent);
                 MessageBox.Show("Thêm mới dữ liệu thành công!");
                 LoadData();
                 ResetInput();
@@ -178,13 +196,13 @@ namespace BaiTapBaLop
                 }
 
                 string studentID = txtMSSV.Text.Trim();
-                Student eStudent = studentService.FindById(studentID);
+                Student eStudent = StudentService.FindById(studentID);
                 if (eStudent != null)
                 {
                     eStudent.FullName = txtHoTen.Text.Trim();
                     eStudent.AverageScore = avgScore;
                     eStudent.FacultyID = Convert.ToInt32(cmbKhoa.SelectedValue);
-                    studentService.InsertUpdate(eStudent);
+                    StudentService.InsertUpdate(eStudent);
                     MessageBox.Show("Cập nhật dữ liệu thành công");
                     LoadData();
                     ResetInput();
@@ -210,7 +228,6 @@ namespace BaiTapBaLop
                 {
                     DataGridViewRow row = dataGridView1.Rows[e.RowIndex];
 
-
                     txtMSSV.Text = row.Cells[0].Value?.ToString();
                     txtHoTen.Text = row.Cells[1].Value?.ToString();
                     txtDiemTB.Text = row.Cells[3].Value?.ToString();
@@ -226,6 +243,10 @@ namespace BaiTapBaLop
                     {
                         cmbKhoa.SelectedIndex = -1;
                     }
+
+                    // Load the selected student's avatar
+                    string studentID = row.Cells[0].Value?.ToString();
+                    LoadAvatar(studentID);  // Load avatar for the selected student
                 }
             }
             catch (Exception ex)
@@ -240,6 +261,111 @@ namespace BaiTapBaLop
             if (result == DialogResult.No)
             {
                 e.Cancel = true;
+            }
+        }
+
+        public void LoadAvatar(string studentID)
+        {
+            try
+            {
+                string imageFolderPath = Path.Combine(Application.StartupPath, "Images");
+
+                if (!Directory.Exists(imageFolderPath))
+                {
+                    MessageBox.Show("Không tìm thấy folder ảnh!");
+                    return;
+                }
+
+                string avatarFileName = studentService.GetAvatarFileName(studentID);  
+                if (string.IsNullOrEmpty(avatarFileName))
+                {
+                    pictureBoxAvatar.Image = null;  
+                    return;
+                }
+
+                string avatarPath = Path.Combine(imageFolderPath, avatarFileName);
+
+                if (File.Exists(avatarPath))
+                {
+                    pictureBoxAvatar.Image = Image.FromFile(avatarPath);
+                }
+                else
+                {
+                    pictureBoxAvatar.Image = null;  
+                    //MessageBox.Show("Không tìm thấy ảnh " + studentID);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi khi tải ảnh: " + ex.Message);
+            }
+        }
+
+        private void btnTaiAnh_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OpenFileDialog openFileDialog = new OpenFileDialog();
+                openFileDialog.Filter = "Image files (*.jpg, *.png) | *.jpg; *.png";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string filePath = openFileDialog.FileName; // Full path of the selected image
+                    string fileExtension = Path.GetExtension(filePath); 
+                    string studentID = txtMSSV.Text; 
+
+                    string savePath = Path.Combine(Application.StartupPath, "Images", studentID + fileExtension);
+
+                    Directory.CreateDirectory(Path.Combine(Application.StartupPath, "Images"));
+
+                    File.Copy(filePath, savePath, true); // Overwrite the existing file
+
+                    studentService.UpdateAvatar(studentID, studentID + fileExtension);
+
+                    LoadAvatar(studentID);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi: " + ex.Message);
+            }
+        }
+
+        private void đăngKíChuyênNgànhToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Form2 frmForm2 = new Form2();
+            frmForm2.ShowDialog();
+        }
+
+        
+
+        private void btnXoa_Click(object sender, EventArgs e)
+        {
+            using (StudentContextDB context = new StudentContextDB())
+            {
+                try
+                {
+                    string studentID = txtMSSV.Text.Trim();
+                    Student onGoingDeleteStudent = context.Students.FirstOrDefault(s => studentID == s.StudentID); ;
+
+                    if (onGoingDeleteStudent != null)
+                    {
+                        context.Students.Remove(onGoingDeleteStudent);
+                        context.SaveChanges();
+                        MessageBox.Show("Xoá sinh viên thành công");
+                        LoadData();
+                        ResetInput();
+
+                    }
+                    else
+                    {
+                        MessageBox.Show("Không tìm thấy sinh viên");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Lỗi: " + ex.Message);
+                }
             }
         }
     }
